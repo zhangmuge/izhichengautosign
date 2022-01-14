@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: 3.7
       - name: 'Install requirements'
-        run: pip install -r ./request/requirements.txt
+        run: pip install -r ./autosign/requirements.txt
       - name: 'Working'
         env:
           students: ${{secrets.students}}
