@@ -113,8 +113,8 @@ def tianbao(id, sheng, shi, qu):
 if __name__ == '__main__':
     for stu in students:
         stu_temp = stu.split(' ')
-        id = stu_temp[0]
-        if len(stu_temp) > 1:
+        id = stu_temp[0] # 如果只输入学号则默认地址打卡
+        if len(stu_temp) > 1: # 如果有输入地址则使用自己输入的地址进行打卡
             sheng = stu_temp[1]
             shi = stu_temp[2]
             qu = stu_temp[3]
