@@ -4,8 +4,9 @@ import requests
 import time
 import re
 import os
-pattern = re.compile(r'[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}')
+
 students = []
+pattern = re.compile(r'[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{12}')  # 找session的正则表达式
 
 # 如果检测到程序在 github actions 内运行，那么读取环境变量中的登录信息
 if os.environ.get('GITHUB_RUN_ID', None):
@@ -19,11 +20,16 @@ if os.environ.get('GITHUB_RUN_ID', None):
             del tmp_students
     except:
         print('err: environment config error')
+else:  # 如果不在github里面则读取本地文件去打卡
+    with open('student.txt', encoding='utf-8', errors='ignore') as s:
+        students = s.read().split('\n')
 
 
-def tianbao(id, name):
-    url = 'http://dw10.fdzcxy.edu.cn/datawarn/ReportServer?formlet=app/sjkrb.frm&op=h5&userno=' + id + '#/form'
-    headers = {
+# 在服务器还可以连接数据库打卡，我没有服务器，略
+
+def tianbao(id, sheng, shi, qu):
+    url = 'http://dw10.fdzcxy.edu.cn/datawarn/ReportServer?formlet=app/sjkrb.frm&op=h5&userno=' + id + '#/form'  # 主页面url，在获取的页面h5里面有session
+    headers = {  # 构造请求头，我这里是自己浏览器复制的
         'Host': 'dw10.fdzcxy.edu.cn',
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
@@ -33,10 +39,10 @@ def tianbao(id, name):
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6'
     }
     # 获取sessionID
-    res = requests.get(url=url, headers=headers)
-    sessionID = pattern.search(res.text)[0]
-    cookie = 'JSESSIONID=' + requests.utils.dict_from_cookiejar(res.cookies)['JSESSIONID']
-    url = 'http://dw10.fdzcxy.edu.cn/datawarn/decision/url/mobile/view/firstdata?op=h5&cmd=firstdata&userno=211906149&__parameters__={}&sessionID=' + sessionID
+    res = requests.get(url=url, headers=headers)  # get拿到主页h5
+    sessionID = pattern.search(res.text)[0]  # 正则表达式找到session
+    cookie = 'JSESSIONID=' + requests.utils.dict_from_cookiejar(res.cookies)['JSESSIONID']  # 记录cookie
+    url = 'http://dw10.fdzcxy.edu.cn/datawarn/decision/url/mobile/view/firstdata?op=h5&cmd=firstdata&userno=' + id + '&__parameters__={}&sessionID=' + sessionID
     headers = {
         'Host': 'dw10.fdzcxy.edu.cn',
         'Connection': 'keep-alive',
@@ -52,21 +58,22 @@ def tianbao(id, name):
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6'
 
     }
-    res = requests.get(url=url, headers=headers)
+    res = requests.get(url=url, headers=headers)  # get这个url激活session，下一步才能获取更多信息
     url = 'http://dw10.fdzcxy.edu.cn/datawarn/decision/view/form?sessionID=' + sessionID + '&op=fr_form&cmd=load_content&toVanCharts=true&fine_api_v_json=3&widgetVersion=1'
     res = requests.get(url=url, headers=headers)
     items = res.json()['items'][0]['el']['items']
+    name = items[2]['value']  # 这里拿到姓名
     for i in items:
         if i['widgetName'] == 'SUBMIT':
             submit = i['listeners'][0]['action']
             break
     # print(submit)
-    jsConfId = pattern.findall(submit)[0]
+    jsConfId = pattern.findall(submit)[0]  # 拿到两个验证码
     callbackConfId = pattern.findall(submit)[1]
     # print(jsConfId, callbackConfId)
 
     # 提交打卡信息
-    url = 'http://dw10.fdzcxy.edu.cn/datawarn/decision/view/form'
+    url = 'http://dw10.fdzcxy.edu.cn/datawarn/decision/view/form'  # 提交表单地址
     headers = {
         'Host': 'dw10.fdzcxy.edu.cn',
         'Connection': 'keep-alive',
@@ -84,32 +91,39 @@ def tianbao(id, name):
         'Accept-Encoding': 'gzip, deflate',
         'Accept-Language': 'zh-CN,zh;q=0.9',
         'Cookie': cookie,
-    }
-    data = {
+    }  # 构造请求头时加入session和cookie
+    data = {  # 构造提交表单项
         'op': 'dbcommit',
         '__parameters__': quote(
-            '{"jsConfId":"' + jsConfId + '","callbackConfId":"' + callbackConfId + '","LABEL2":"  每日健康上报","XH":"' + id + '","XM":"' + name + '","LABEL12":"","LABEL0":"1. 目前所在位置:","SHENG":"福建省","SHI":"福州市","QU":"鼓楼区","LABEL11":"2.填报时间:","SJ":"' + time.strftime(
+            '{"jsConfId":"' + jsConfId + '","callbackConfId":"' + callbackConfId + '","LABEL2":"  每日健康上报","XH":"' + id + '","XM":"' + name + '","LABEL12":"","LABEL0":"1. 目前所在位置:","SHENG":"' + sheng + '","SHI":"' + shi + '","QU":"' + qu + '","LABEL11":"2.填报时间:","SJ":"' + time.strftime(
                 "%Y-%m-%d %H:%M:%S",
-                time.localtime()) + '","LABEL1":"3. 今日体温是否正常？(体温小于37.3为正常)","TWZC":"正常","LABEL6":"目前体温为：","TW":"0","TXWZ":"福建省福州市鼓楼区","LABEL9":"4. 昨日午检体温:","WUJ":"36.4","LABEL8":"5. 昨日晚检体温:","WJ":"36.5","LABEL10":"6. 今日晨检体温:","CJ":"36.4","LABEL3":"7. 今日健康状况？","JK":["健康"],"JKZK":"","QTB":"请输入具体症状：","QT":" ","LABEL4":"8. 近14日你和你的共同居住者(包括家庭成员、共同租住的人员)是否存在确诊、疑似、无症状新冠感染者？","WTSQK":["无以下特殊情况"],"SFXG":"","LABEL5":"9. 今日隔离情况？","GLQK":"无需隔离","LABEL7":"* 本人承诺以上所填报的内容全部真实，并愿意承担相应责任。","CHECK":true,"DWWZ":{},"SUBMIT":"提交信息"}'),
+                time.localtime()) + '","LABEL1":"3. 今日体温是否正常？(体温小于37.3为正常)","TWZC":"正常","LABEL6":"目前体温为：","TW":"0","TXWZ":"' +
+            sheng + shi + qu + '","LABEL9":"4. 昨日午检体温:","WUJ":"36.4","LABEL8":"5. 昨日晚检体温:","WJ":"36.5","LABEL10":"6. 今日晨检体温:","CJ":"36.4","LABEL3":"7. 今日健康状况？","JK":["健康"],"JKZK":"","QTB":"请输入具体症状：","QT":" ","LABEL4":"8. 近14日你和你的共同居住者(包括家庭成员、共同租住的人员)是否存在确诊、疑似、无症状新冠感染者？","WTSQK":["无以下特殊情况"],"SFXG":"","LABEL5":"9. 今日隔离情况？","GLQK":"无需隔离","LABEL7":"* 本人承诺以上所填报的内容全部真实，并愿意承担相应责任。","CHECK":true,"DWWZ":{},"SUBMIT":"提交信息"}'),
     }
     # print(data)
 
     try:
         res = requests.post(url=url, headers=headers, data=data)
-
         if res.text:
-            print('打卡成功')
+            print(name + '打卡成功')
     except:
-        print('打卡失败')
+        print(name + '打卡失败')
 
 
 if __name__ == '__main__':
     for stu in students:
         stu_temp = stu.split(' ')
         id = stu_temp[0]
-        name = stu_temp[1]
-        tianbao(id, name)
+        if len(stu_temp) > 1:
+            sheng = stu_temp[1]
+            shi = stu_temp[2]
+            qu = stu_temp[3]
+        else:
+            sheng = '福建省'
+            shi = '福州市'  # 默认学校地址
+            qu = '鼓楼区'
+        tianbao(id, sheng, shi, qu)
         del id
         time.sleep(2)
 
-        print('全部打卡完成！')
+    print('全部打卡完成！')
