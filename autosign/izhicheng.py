@@ -42,7 +42,6 @@ def tianbao(id, sheng, shi, qu):
     res = requests.get(url=url, headers=headers)  # get拿到主页h5
     sessionID = pattern.search(res.text)[0]  # 正则表达式找到session
     cookie = 'JSESSIONID=' + requests.utils.dict_from_cookiejar(res.cookies)['JSESSIONID']  # 记录cookie
-    url = 'http://dw10.fdzcxy.edu.cn/datawarn/decision/url/mobile/view/firstdata?op=h5&cmd=firstdata&userno=' + id + '&__parameters__={}&sessionID=' + sessionID
     headers = {
         'Host': 'dw10.fdzcxy.edu.cn',
         'Connection': 'keep-alive',
@@ -58,7 +57,6 @@ def tianbao(id, sheng, shi, qu):
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6'
 
     }
-    res = requests.get(url=url, headers=headers)  # get这个url激活session，下一步才能获取更多信息
     url = 'http://dw10.fdzcxy.edu.cn/datawarn/decision/view/form?sessionID=' + sessionID + '&op=fr_form&cmd=load_content&toVanCharts=true&fine_api_v_json=3&widgetVersion=1'
     res = requests.get(url=url, headers=headers)
     items = res.json()['items'][0]['el']['items']
