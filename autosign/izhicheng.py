@@ -101,7 +101,7 @@ def tianbao(id, sheng, shi, qu):
         }
         # print(data)
     except:
-        print(name + '打卡失败')
+        print(id + '打卡失败')
         return
     try:
         res = requests.post(url=url, headers=headers, data=data)
